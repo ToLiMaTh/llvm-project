@@ -35,6 +35,7 @@ add_llvm_target(WebAssemblyCodeGen
   WebAssemblyISelLowering.cpp
   WebAssemblyInstrInfo.cpp
   WebAssemblyLowerBrUnless.cpp
+  WebAssemblyLowerReplaceDummy.cpp
   WebAssemblyLowerEmscriptenEHSjLj.cpp
   WebAssemblyLowerGlobalDtors.cpp
   WebAssemblyMachineFunctionInfo.cpp

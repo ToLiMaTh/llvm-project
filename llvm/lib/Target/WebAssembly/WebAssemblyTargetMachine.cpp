@@ -85,6 +85,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeWebAssemblyTarget() {
   initializeWebAssemblyHandleEHTerminatePadsPass(PR);
   initializeWebAssemblyExplicitLocalsPass(PR);
   initializeWebAssemblyLowerBrUnlessPass(PR);
+  initializeWebAssemblyLowerReplaceDummyPass(PR);
   initializeWebAssemblyRegNumberingPass(PR);
   initializeWebAssemblyDebugFixupPass(PR);
   initializeWebAssemblyPeepholePass(PR);
@@ -496,6 +497,9 @@ void WebAssemblyPassConfig::addPreEmitPass() {
 
   // Lower br_unless into br_if.
   addPass(createWebAssemblyLowerBrUnless());
+
+  // Execute dummy pass
+  addPass(createWebAssemblyLowerReplaceDummy());
 
   // Perform the very last peephole optimizations on the code.
   if (getOptLevel() != CodeGenOpt::None)
