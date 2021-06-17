@@ -66,6 +66,9 @@ bool WebAssemblyRegNumbering::runOnMachineFunction(MachineFunction &MF) {
   WebAssemblyFunctionInfo &MFI = *MF.getInfo<WebAssemblyFunctionInfo>();
   MachineRegisterInfo &MRI = MF.getRegInfo();
 
+  // Test: add register:
+// Register TestReg = MRI.createVirtualRegister(MRI.getTargetRegisterInfo()->getPointerRegClass(MF));
+
   MFI.initWARegs(MRI);
 
   // WebAssembly argument registers are in the same index space as local
@@ -81,6 +84,11 @@ bool WebAssemblyRegNumbering::runOnMachineFunction(MachineFunction &MF) {
     MFI.setWAReg(MI.getOperand(0).getReg(), Imm);
   }
 
+  // Test: Add additional register
+//  Register TestReg = MRI.createVirtualRegister(MRI.getTargetRegisterInfo()->getPointerRegClass(MF));
+//  int64_t TestImm = 123;
+//  MFI.setWAReg(TestReg, MFI.getParams().size());
+
   // Then assign regular WebAssembly registers for all remaining used
   // virtual registers. TODO: Consider sorting the registers by frequency of
   // use, to maximize usage of small immediate fields.
@@ -88,6 +96,7 @@ bool WebAssemblyRegNumbering::runOnMachineFunction(MachineFunction &MF) {
   unsigned NumStackRegs = 0;
   // Start the numbering for locals after the arg regs
   unsigned CurReg = MFI.getParams().size();
+//  CurReg = CurReg + 1; // due to test!
   for (unsigned VRegIdx = 0; VRegIdx < NumVRegs; ++VRegIdx) {
     unsigned VReg = Register::index2VirtReg(VRegIdx);
     // Skip unused registers.

@@ -645,6 +645,9 @@ static void createSyntheticSymbols() {
     // For non-PIC code
     WasmSym::stackPointer = createGlobalVariable("__stack_pointer", true);
     WasmSym::stackPointer->markLive();
+    // Create symnbol for roddataend
+    WasmSym::rodataEnd = createGlobalVariable("__rodata_end", false); // new symbol, not muable
+    WasmSym::rodataEnd->markLive();
   }
 
   if (config->sharedMemory && !config->relocatable) {

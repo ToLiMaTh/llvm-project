@@ -85,6 +85,7 @@ GlobalSymbol *WasmSym::stackPointer;
 GlobalSymbol *WasmSym::tlsBase;
 GlobalSymbol *WasmSym::tlsSize;
 GlobalSymbol *WasmSym::tlsAlign;
+GlobalSymbol *WasmSym::rodataEnd; // define symbol
 UndefinedGlobal *WasmSym::tableBase;
 DefinedData *WasmSym::definedTableBase;
 UndefinedGlobal *WasmSym::memoryBase;

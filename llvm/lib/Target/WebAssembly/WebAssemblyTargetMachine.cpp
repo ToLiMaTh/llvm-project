@@ -414,7 +414,7 @@ bool WebAssemblyPassConfig::addInstSelector() {
 
   // Eliminate range checks and add default targets to br_table instructions.
   addPass(createWebAssemblyFixBrTableDefaults());
-
+  
   return false;
 }
 
@@ -445,7 +445,7 @@ void WebAssemblyPassConfig::addPreEmitPass() {
 
   // Eliminate multiple-entry loops.
   addPass(createWebAssemblyFixIrreducibleControlFlow());
-
+  
   // Do various transformations for exception handling.
   // Every CFG-changing optimizations should come before this.
   if (TM->Options.ExceptionModel == ExceptionHandling::Wasm)
@@ -504,6 +504,10 @@ void WebAssemblyPassConfig::addPreEmitPass() {
   // Perform the very last peephole optimizations on the code.
   if (getOptLevel() != CodeGenOpt::None)
     addPass(createWebAssemblyPeephole());
+
+  // Execute dummy pass
+//  addPass(createWebAssemblyLowerReplaceDummy());
+
 
   // Create a mapping from LLVM CodeGen virtual registers to wasm registers.
   addPass(createWebAssemblyRegNumbering());

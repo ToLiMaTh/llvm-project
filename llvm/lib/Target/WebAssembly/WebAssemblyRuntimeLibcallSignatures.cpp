@@ -328,6 +328,9 @@ struct RuntimeLibcallSignatureTable {
 
     // __stack_chk_fail
     Table[RTLIB::STACKPROTECTOR_CHECK_FAIL] = func;
+    
+    // Heapprotection
+    Table[RTLIB::HEAPPROTECT_CHECK] = func;
 
     // Return address handling
     Table[RTLIB::RETURN_ADDRESS] = i32_func_i32;

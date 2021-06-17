@@ -511,7 +511,7 @@ struct WasmSym {
   // __tls_size
   // Symbol whose value is the alignment of the TLS block.
   static GlobalSymbol *tlsAlign;
-
+  
   // __data_end
   // Symbol marking the end of the data and bss.
   static DefinedData *dataEnd;
@@ -573,6 +573,10 @@ struct WasmSym {
   // Used as an address space for function pointers, with each function that is
   // used as a function pointer being allocated a slot.
   static TableSymbol *indirectFunctionTable;
+  
+    // __rodata_end
+  // Symbol whos value is the end of the .rodata section
+  static GlobalSymbol *rodataEnd; // define new symbol
 };
 
 // A buffer class that is large enough to hold any Symbol-derived

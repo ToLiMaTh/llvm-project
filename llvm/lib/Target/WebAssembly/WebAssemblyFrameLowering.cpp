@@ -234,6 +234,13 @@ void WebAssemblyFrameLowering::emitPrologue(MachineFunction &MF,
   auto *SPSymbol = MF.createExternalSymbolName(ES);
   BuildMI(MBB, InsertPt, DL, TII->get(getOpcGlobGet(MF)), SPReg)
       .addExternalSymbol(SPSymbol);
+      
+/*  // Just to test, remobve this later! (rodataend)
+  const char *ESTest = "__rodata_end";
+  auto *SPSymbolTest = MF.createExternalSymbolName(ESTest);
+  BuildMI(MBB, InsertPt, DL, TII->get(getOpcGlobGet(MF)), SPReg)
+      .addExternalSymbol(SPSymbolTest);
+*/  // End test!
 
   bool HasBP = hasBP(MF);
   if (HasBP) {
@@ -248,6 +255,8 @@ void WebAssemblyFrameLowering::emitPrologue(MachineFunction &MF,
     Register OffsetReg = MRI.createVirtualRegister(PtrRC);
     BuildMI(MBB, InsertPt, DL, TII->get(getOpcConst(MF)), OffsetReg)
         .addImm(StackSize);
+//    BuildMI(MBB, InsertPt, DL, TII->get(getOpcAdd(MF)), OffsetReg)
+//    	.addImm(16);
     BuildMI(MBB, InsertPt, DL, TII->get(getOpcSub(MF)), getSPReg(MF))
         .addReg(SPReg)
         .addReg(OffsetReg);

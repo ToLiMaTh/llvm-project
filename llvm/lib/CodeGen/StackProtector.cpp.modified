@@ -117,7 +117,7 @@ bool StackProtector::runOnFunction(Function &Fn) {
       return false;
 
     // Just for me :)
-//    errs() << "Adding Wasm-SP to " << Fn.getName() << "\n";
+    errs() << "Adding Wasm-SP to " << Fn.getName() << "\n";
 
     // Insert SP into wasm function
     return InsertWasmStackProtectors();
@@ -600,7 +600,7 @@ static std::list<AllocaInst*> CreateWasmPrologue(Function *F, Module *M, ReturnI
   
   // Shortcut if no additional SP requested
   if (WasmDisableAdditionalSP) {
-//    errs() << "Additional Wasm-SP disabled in " << F->getName() << "\n";
+    errs() << "Additional Wasm-SP disabled in " << F->getName() << "\n";
     return allAllocaInst;
   }
   

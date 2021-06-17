@@ -34,6 +34,8 @@
 
 #include <cstdarg>
 #include <map>
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
 
 #define DEBUG_TYPE "lld"
 
@@ -283,6 +285,11 @@ void Writer::layoutMemory() {
     }
 
     memoryPtr += seg->size;
+    
+    // set __rodata_end
+    if(seg->name == ".rodata") {
+    	setGlobalPtr(cast<DefinedGlobal>(WasmSym::rodataEnd), memoryPtr);
+    }
   }
 
   // Make space for the memory initialization flag
@@ -1367,7 +1374,8 @@ void Writer::run() {
   // For PIC code the table base is assigned dynamically by the loader.
   // For non-PIC, we start at 1 so that accessing table index 0 always traps.
   if (!config->isPic) {
-    config->tableBase = 1;
+    srand(time(NULL));
+    config->tableBase = rand() % 100 + 1; // random offset between 1 and 100. (was: 1)
     if (WasmSym::definedTableBase)
       WasmSym::definedTableBase->setVA(config->tableBase);
   }

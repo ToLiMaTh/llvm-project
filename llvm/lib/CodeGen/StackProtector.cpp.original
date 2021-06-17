@@ -49,7 +49,6 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <utility>
-#include <list>
 
 using namespace llvm;
 
@@ -61,12 +60,6 @@ STATISTIC(NumAddrTaken, "Number of local variables that have their address"
 
 static cl::opt<bool> EnableSelectionDAGSP("enable-selectiondag-sp",
                                           cl::init(true), cl::Hidden);
-
-static cl::opt<bool> WasmEnableSP("tlmt-enable-sp", cl::desc("enable stackcookies for wasm"),
-                                          cl::init(false), cl::Hidden);     
-                                          
-static cl::opt<bool> WasmDisableAdditionalSP("tlmt-disable-additional-sp", cl::desc("disable additional stackcookies for wasm"),
-                                          cl::init(false), cl::Hidden);                                                                                   
 
 char StackProtector::ID = 0;
 
@@ -99,29 +92,6 @@ bool StackProtector::runOnFunction(Function &Fn) {
   TLI = TM->getSubtargetImpl(Fn)->getTargetLowering();
   HasPrologue = false;
   HasIRCheck = false;
-
-  // Alternative path for wasm files
-  if (WasmEnableSP) {
-    // Disable SP for init functions (and s_chk_fail)
-    if (Fn.getName() == "__guard_setup" || Fn.getName() == "initialize_malloc_heap" || Fn.getName() == "__stack_chk_fail")
-  	  return false;
-  	  
-    // Do we actually need to insert a SP?
-    bool needed = false;
-    for (const BasicBlock &BB : *F) {
-      for (const Instruction &I : BB) {
-        if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) needed = true;
-      }
-    }    
-    if (!needed)
-      return false;
-
-    // Just for me :)
-//    errs() << "Adding Wasm-SP to " << Fn.getName() << "\n";
-
-    // Insert SP into wasm function
-    return InsertWasmStackProtectors();
-  }
 
   Attribute Attr = Fn.getFnAttribute("stack-protector-buffer-size");
   if (Attr.isStringAttribute() &&
@@ -574,120 +544,6 @@ bool StackProtector::InsertStackProtectors() {
                                                  FailureProb.getNumerator());
       B.CreateCondBr(Cmp, NewBB, FailBB, Weights);
     }
-  }
-
-  // Return if we didn't modify any basic blocks. i.e., there are no return
-  // statements in the function.
-  return HasPrologue;
-}
-
-// Modified Prologue inserter
-static std::list<AllocaInst*> CreateWasmPrologue(Function *F, Module *M, ReturnInst *RI,
-                           const TargetLoweringBase *TLI, AllocaInst *&AI) {
-  // Setup
-  bool SupportsSelectionDAGSP = false;
-  IRBuilder<> B(&F->getEntryBlock().front());
-  PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
-  Value *GuardSlot = getStackGuard(TLI, M, B, &SupportsSelectionDAGSP); //__stack_chk_guard
-
-  // Set up frist guard (this one will be here in any case)
-  AI = B.CreateAlloca(PtrTy, nullptr, "StackGuardSlot");
-  B.CreateCall(Intrinsic::getDeclaration(M, Intrinsic::stackprotector), {GuardSlot, AI});
-
-
-  // Set a SP between all stack-variables
-  std::list<AllocaInst*> allAllocaInst; // List of all added guards (except first one)
-  
-  // Shortcut if no additional SP requested
-  if (WasmDisableAdditionalSP) {
-//    errs() << "Additional Wasm-SP disabled in " << F->getName() << "\n";
-    return allAllocaInst;
-  }
-  
-  bool skip = true;
-  for (Instruction &I : F->getEntryBlock()) {
-    if (AllocaInst *AllocaI = dyn_cast<AllocaInst>(&I)) {
-      if (skip) { // We need to skip the first allocation, since we already have a guard there
-        skip = false;
-        continue;
-      }
-      B.SetInsertPoint(&I); // insert a guard BEFORE every alloca (to catch overflows)
-      AllocaInst *AI2 = B.CreateAlloca(PtrTy, nullptr, "StackGuardSlot");
-      B.CreateCall(Intrinsic::getDeclaration(M, Intrinsic::stackprotector), {GuardSlot, AI2});
-      allAllocaInst.push_back(AI2); // add guard to list of guards
-    }
-  }
-
-  // Return list of all Stackprotectors
-  return allAllocaInst;
-}
-
-// Modified version of InsertStackProtectors
-bool StackProtector::InsertWasmStackProtectors() {
-  AllocaInst *AI = nullptr;       // First stack protector
-  std::list<AllocaInst*> allAllocaInst; // List of (pointers to alloc instructions of) stack protectors
-
-  for (Function::iterator I = F->begin(), E = F->end(); I != E;) {
-
-    // Find a terminator instruction
-    BasicBlock *BB = &*I++;
-    ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator());
-    if (!RI)
-      continue;
-
-    // Generate prologue if not already generated
-    if (!HasPrologue) {
-      HasPrologue = true;
-      allAllocaInst = CreateWasmPrologue(F, M, RI, TLI, AI); // get list of all guards (except the first one)
-    }
-
-    // Set HasIRCheck to true, so that SelectionDAG will not generate its own
-    // version. SelectionDAG called 'shouldEmitSDCheck' to check whether
-    // instrumentation has already been generated.
-    HasIRCheck = true;
-
-    // Generate epilogue
-    // Create fail block (all of them will be merged by MI tail merge pass)
-    BasicBlock *FailBB = CreateFailBB();
-
-    // Split the basic block before the return instruction.
-    BasicBlock *NewBB = BB->splitBasicBlock(RI->getIterator(), "SP_return");
-
-    // Update the dominator tree if we need to.
-    if (DT && DT->isReachableFromEntry(BB)) {
-      DT->addNewBlock(NewBB, BB);
-      DT->addNewBlock(FailBB, BB);
-    }
-
-    // Remove default branch instruction to the new BB.
-    BB->getTerminator()->eraseFromParent();
-
-    // Move the newly created basic block to the point right after the old
-    // basic block so that it's in the "fall through" position.
-    NewBB->moveAfter(BB);
-
-    // Generate the stack protector instructions in the old basic block.
-    IRBuilder<> B(BB);
-    Value *Guard = getStackGuard(TLI, M, B); //__stack_chk_guard
-    LoadInst *LI = B.CreateLoad(B.getInt8PtrTy(), AI, true);
-    Value *Cmp = B.CreateICmpEQ(Guard, LI);
-    
-    // For all other guards: compare it to canary and combine all results
-    for (AllocaInst* currentAI : allAllocaInst) {
-      LI = B.CreateLoad(B.getInt8PtrTy(), currentAI, true);
-      Value *Cmp2 = B.CreateICmpEQ(Guard, LI);
-      Cmp = B.CreateAnd(Cmp, Cmp2);
-    }
-    
-    // Create branch
-    auto SuccessProb =
-        BranchProbabilityInfo::getBranchProbStackProtector(true);
-    auto FailureProb =
-        BranchProbabilityInfo::getBranchProbStackProtector(false);
-    MDNode *Weights = MDBuilder(F->getContext())
-                          .createBranchWeights(SuccessProb.getNumerator(),
-                                                FailureProb.getNumerator());
-    B.CreateCondBr(Cmp, NewBB, FailBB, Weights);
   }
 
   // Return if we didn't modify any basic blocks. i.e., there are no return

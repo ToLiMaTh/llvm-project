@@ -80,6 +80,8 @@ private:
   ///  - The epilogue checks the value stored in the prologue against the
   ///    original value. It calls __stack_chk_fail if they differ.
   bool InsertStackProtectors();
+  
+  bool InsertWasmStackProtectors();
 
   /// CreateFailBB - Create a basic block to jump to when the stack protector
   /// check fails.
@@ -100,6 +102,7 @@ private:
   /// RequiresStackProtector - Check whether or not this function needs a
   /// stack protector based upon the stack protector level.
   bool RequiresStackProtector();
+  
 
 public:
   static char ID; // Pass identification, replacement for typeid.
